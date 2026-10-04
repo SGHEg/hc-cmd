@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#409639" />
+  <title>SGH Command Center</title>
+  <style>
+    :root { --g: #409639; --n: #23244a; }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body { display: grid; place-items: center; padding: 24px; font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Arabic", sans-serif; color: #fff;
+      background: radial-gradient(900px 500px at 85% -10%, rgba(64,150,57,.55), transparent 60%), radial-gradient(700px 500px at -10% 110%, rgba(60,90,220,.35), transparent 60%), linear-gradient(160deg, #0b1030, #121b44 60%, #0e2a3a); }
+    main { width: 100%; max-width: 440px; text-align: center; }
+    .mark { width: 64px; height: 64px; margin: 0 auto 22px; border-radius: 18px; display: grid; place-items: center; background: linear-gradient(135deg, #409639, #2b8f86); box-shadow: 0 16px 36px -14px rgba(64,150,57,.9); }
+    .mark svg { width: 34px; height: 34px; fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    h1 { margin: 0 0 6px; font-size: 26px; letter-spacing: -.01em; }
+    p { margin: 0 0 22px; color: #b9c4de; }
+    .spin { width: 34px; height: 34px; margin: 0 auto; border: 3px solid rgba(255,255,255,.25); border-top-color: #7bd573; border-radius: 50%; animation: s .8s linear infinite; }
+    @keyframes s { to { transform: rotate(360deg); } }
+    .off .spin { display: none; }
+    button, a.btn { display: none; margin: 18px auto 0; padding: 12px 26px; border: 0; border-radius: 99px; background: var(--g); color: #fff; font: 700 15px/1 inherit; cursor: pointer; text-decoration: none; }
+    .off button { display: inline-block; }
+    small { display: block; margin-top: 26px; color: #7f8db3; font-size: 12.5px; }
+  </style>
+</head>
+<body>
+  <main id="m">
+    <div class="mark"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.5-9.3-9A5.4 5.4 0 0 1 12 6a5.4 5.4 0 0 1 9.3 6C19 16.5 12 21 12 21z"/></svg></div>
+    <h1>Human Capital Command Center</h1>
+    <p id="msg">Opening the portal…</p>
+    <div class="spin" aria-hidden="true"></div>
+    <button id="retry" type="button">Try again</button>
+    <small>Saudi German Health Egypt · Internal use only</small>
+  </main>
+  <noscript><p style="text-align:center">This page needs JavaScript to find the portal.</p></noscript>
+  <script>
+  (() => {
+    // The portal runs on a server inside the hospital; its public address changes when that server restarts.
+    // The server announces each new address as a SIGNED message on this topic. Only messages that verify
+    // against the public key below are trusted, so a forged message cannot send anyone elsewhere.
+    const TOPIC = 'sgh-portal-c1e7c542b8f1117e31e0';
+    const PUBKEY = { kty: 'EC', crv: 'P-256', x: 'd-qwqZ8uu5nZQjZCkEXMVdQjV9DluxuJLX_rBKgYpe0', y: 'dr4DY-QHKQcMa9JJ-dzcIz9MB1asPoQz5WUN5xiJBNs' };
+    const MAX_AGE = 30 * 3600; // seconds: the server repeats the address every few hours
+    const $ = (id) => document.getElementById(id);
+    const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+    let tries = 0; let key = null;
+
+    async function latest() {
+      key = key || await crypto.subtle.importKey('jwk', PUBKEY, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+      const r = await fetch(`https://ntfy.sh/${TOPIC}/json?poll=1&since=36h`, { cache: 'no-store' });
+      const text = await r.text();
+      let best = null;
+      for (const line of text.split('\n')) {
+        if (!line.trim()) continue;
+        let m; try { m = JSON.parse(JSON.parse(line).message); } catch { continue; }
+        if (!m || typeof m.url !== 'string' || !/^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(m.url)) continue;
+        if (!Number.isFinite(m.ts) || Date.now() / 1000 - m.ts > MAX_AGE || m.ts > Date.now() / 1000 + 600) continue;
+        let ok = false;
+        try { ok = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, key, b64(m.sig), new TextEncoder().encode(`${m.url}|${m.ts}`)); } catch { ok = false; }
+        if (ok && (!best || m.ts > best.ts)) best = m;
+      }
+      return best;
+    }
+    async function alive(url) {
+      const c = new AbortController(); const t = setTimeout(() => c.abort(), 9000);
+      try { const r = await fetch(`${url}/ping`, { cache: 'no-store', signal: c.signal }); return r.ok && (await r.text()) === 'ok'; } catch { return false; } finally { clearTimeout(t); }
+    }
+    async function go() {
+      $('m').classList.remove('off'); $('msg').textContent = 'Opening the portal…';
+      try {
+        const m = await latest();
+        if (m && await alive(m.url)) { $('msg').textContent = 'Opening…'; location.replace(m.url); return; }
+      } catch { /* fall through to retry */ }
+      if (++tries < 6) { $('msg').textContent = 'Looking for the portal…'; setTimeout(go, 6000); return; }
+      $('m').classList.add('off'); $('msg').textContent = 'The portal is temporarily offline. Please try again in a few minutes.'; tries = 0;
+    }
+    $('retry').addEventListener('click', go);
+    go();
+  })();
+  </script>
+</body>
+</html>

@@ -53,7 +53,7 @@
     const $ = (id) => document.getElementById(id);
     const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
     // Deep links: hc-cmd/?to=personnel opens that workspace (after sign-in if needed). Only these names are accepted.
-    const ROUTES = { hub: '/', incentives: '/incentives.html', workforce: '/workforce/', personnel: '/personnel.html', talent: '/talent.html', account: '/account.html', admin: '/admin.html' };
+    const ROUTES = { hub: '/', incentives: '/incentives.html', workforce: '/workforce/', personnel: '/personnel.html', talent: '/talent.html', academy: '/academy.html', monthly: '/monthly.html', account: '/account.html', admin: '/admin.html' };
     const wanted = ROUTES[new URLSearchParams(location.search).get('to')] || '/';
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
     let tries = 0; let key = null;

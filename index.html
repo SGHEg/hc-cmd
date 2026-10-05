@@ -5,7 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="robots" content="noindex, nofollow" />
   <meta name="theme-color" content="#409639" />
-  <title>SGH Command Center</title>
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="HC Cmd" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icon-180.png" />
+  <link rel="icon" type="image/png" href="icon-192.png" />
+  <title>HC Command Center</title>
   <style>
     :root { --g: #409639; --n: #23244a; }
     * { box-sizing: border-box; }
@@ -45,6 +52,10 @@
     const MAX_AGE = 30 * 3600; // seconds: the server repeats the address every few hours
     const $ = (id) => document.getElementById(id);
     const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+    // Deep links: hc-cmd/?to=personnel opens that workspace (after sign-in if needed). Only these names are accepted.
+    const ROUTES = { hub: '/', incentives: '/incentives.html', workforce: '/workforce/', personnel: '/personnel.html', talent: '/talent.html', account: '/account.html', admin: '/admin.html' };
+    const wanted = ROUTES[new URLSearchParams(location.search).get('to')] || '/';
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
     let tries = 0; let key = null;
 
     async function latest() {
@@ -71,7 +82,7 @@
       $('m').classList.remove('off'); $('msg').textContent = 'Opening the portal…';
       try {
         const m = await latest();
-        if (m && await alive(m.url)) { $('msg').textContent = 'Opening…'; location.replace(m.url); return; }
+        if (m && await alive(m.url)) { $('msg').textContent = 'Opening…'; location.replace(m.url + wanted); return; }
       } catch { /* fall through to retry */ }
       if (++tries < 6) { $('msg').textContent = 'Looking for the portal…'; setTimeout(go, 6000); return; }
       $('m').classList.add('off'); $('msg').textContent = 'The portal is temporarily offline. Please try again in a few minutes.'; tries = 0;

@@ -62,7 +62,7 @@
       key = key || await crypto.subtle.importKey('jwk', PUBKEY, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
       const r = await fetch(`https://ntfy.sh/${TOPIC}/json?poll=1&since=36h`, { cache: 'no-store' });
       const text = await r.text();
-      let best = null;
+      const found = [];
       for (const line of text.split('\n')) {
         if (!line.trim()) continue;
         let m; try { m = JSON.parse(JSON.parse(line).message); } catch { continue; }
@@ -70,22 +70,28 @@
         if (!Number.isFinite(m.ts) || Date.now() / 1000 - m.ts > MAX_AGE || m.ts > Date.now() / 1000 + 600) continue;
         let ok = false;
         try { ok = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, key, b64(m.sig), new TextEncoder().encode(`${m.url}|${m.ts}`)); } catch { ok = false; }
-        if (ok && (!best || m.ts > best.ts)) best = m;
+        if (ok) found.push(m);
       }
-      return best;
+      // newest first, each address once: a tunnel that has just been replaced is tried after the new one
+      found.sort((a, b) => b.ts - a.ts);
+      return found.filter((m, i) => found.findIndex((x) => x.url === m.url) === i).slice(0, 4);
     }
     async function alive(url) {
-      const c = new AbortController(); const t = setTimeout(() => c.abort(), 9000);
+      const c = new AbortController(); const t = setTimeout(() => c.abort(), 12000);
       try { const r = await fetch(`${url}/ping`, { cache: 'no-store', signal: c.signal }); return r.ok && (await r.text()) === 'ok'; } catch { return false; } finally { clearTimeout(t); }
     }
     async function go() {
       $('m').classList.remove('off'); $('msg').textContent = 'Opening the portal…';
       try {
-        const m = await latest();
-        if (m && await alive(m.url)) { $('msg').textContent = 'Opening…'; location.replace(m.url + wanted); return; }
+        for (const m of await latest()) {
+          // a fresh tunnel can need a few seconds before its first answer: ask twice
+          if (await alive(m.url) || await alive(m.url)) { $('msg').textContent = 'Opening…'; location.replace(m.url + wanted); return; }
+        }
       } catch { /* fall through to retry */ }
-      if (++tries < 6) { $('msg').textContent = 'Looking for the portal…'; setTimeout(go, 6000); return; }
-      $('m').classList.add('off'); $('msg').textContent = 'The portal is temporarily offline. Please try again in a few minutes.'; tries = 0;
+      if (++tries < 8) { $('msg').textContent = 'Looking for the portal…'; setTimeout(go, 5000); return; }
+      // keep looking quietly: the portal usually comes back within a minute or two of an update
+      $('m').classList.add('off'); $('msg').textContent = 'The portal is temporarily offline. This page keeps trying and opens it by itself.'; tries = 4;
+      clearTimeout(window.__again); window.__again = setTimeout(go, 15000);
     }
     $('retry').addEventListener('click', go);
     go();

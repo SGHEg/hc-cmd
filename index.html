@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <meta name="referrer" content="no-referrer" />
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="robots" content="noindex, nofollow" />
@@ -53,8 +54,11 @@
     const $ = (id) => document.getElementById(id);
     const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
     // Deep links: hc-cmd/?to=personnel opens that workspace (after sign-in if needed). Only these names are accepted.
-    const ROUTES = { hub: '/', incentives: '/incentives.html', workforce: '/workforce/', personnel: '/personnel.html', talent: '/talent.html', academy: '/academy.html', monthly: '/monthly.html', radar: '/radar.html', account: '/account.html', admin: '/admin.html' };
-    const wanted = ROUTES[new URLSearchParams(location.search).get('to')] || '/';
+    const ROUTES = { hub: '/', incentives: '/incentives.html', workforce: '/workforce/', personnel: '/personnel.html', talent: '/talent.html', academy: '/academy.html', monthly: '/monthly.html', radar: '/radar.html', retention: '/exits.html', account: '/account.html', admin: '/admin.html' };
+    const qs = new URLSearchParams(location.search);
+    // hc-cmd/?s=<token> is a share link made by an administrator: the portal opens the one page it was made for. Only a plain token is accepted.
+    const shared = /^[A-Za-z0-9_-]{20,64}$/.test(qs.get('s') || '') ? `/s/${qs.get('s')}` : '';
+    const wanted = shared || ROUTES[qs.get('to')] || '/';
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
     let tries = 0; let key = null;
 

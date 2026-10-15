@@ -54,7 +54,7 @@
     const $ = (id) => document.getElementById(id);
     const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
     // Deep links: hc-cmd/?to=personnel opens that workspace (after sign-in if needed). Only these names are accepted.
-    const ROUTES = { hub: '/', incentives: '/incentives.html', workforce: '/workforce/', personnel: '/personnel.html', talent: '/talent.html', academy: '/academy.html', monthly: '/monthly.html', radar: '/radar.html', retention: '/exits.html', account: '/account.html', admin: '/admin.html' };
+    const ROUTES = { hub: '/', incentives: '/incentives.html', workforce: '/workforce/', personnel: '/personnel.html', talent: '/talent.html', academy: '/academy.html', monthly: '/monthly.html', radar: '/radar.html', retention: '/exits.html', productivity: '/productivity.html', account: '/account.html', admin: '/admin.html' };
     const qs = new URLSearchParams(location.search);
     // hc-cmd/?s=<token> is a share link made by an administrator: the portal opens the one page it was made for. Only a plain token is accepted.
     const shared = /^[A-Za-z0-9_-]{20,64}$/.test(qs.get('s') || '') ? `/s/${qs.get('s')}` : '';
